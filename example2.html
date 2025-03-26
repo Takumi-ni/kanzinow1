@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kanzinow - 傾斜割り勘計算</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #fffaf5;
+      color: #333;
+      margin: 0;
+      padding: 2rem;
+    }
+    h1 {
+      text-align: center;
+      color: #ff6f3c;
+    }
+    form, .result {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .member {
+      margin-bottom: 1rem;
+    }
+    input[type="text"], input[type="number"] {
+      padding: 0.5rem;
+      margin: 0.3rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      width: 40%;
+    }
+    .btn {
+      background-color: #ff6f3c;
+      color: white;
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+      margin-top: 1rem;
+    }
+    .btn:hover {
+      opacity: 0.9;
+    }
+    .flex {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .small {
+      font-size: 0.85rem;
+      color: gray;
+    }
+    .copy-btn {
+      float: right;
+      background: #ddd;
+      color: #333;
+      margin-top: 1rem;
+    }
+    @media (max-width: 600px) {
+      input[type="text"], input[type="number"] {
+        width: 100%;
+      }
+      .flex {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>KanziNow</h1>
+  <form id="form">
+    <label>総額（円）:<br>
+      <input type="number" id="total" required>
+    </label><br><br>
+    <div id="members">
+      <div class="member flex">
+        <input type="text" placeholder="名前" required>
+        <input type="number" placeholder="傾斜係数" step="0.1" value="1.0" required>
+      </div>
+    </div>
+    <button type="button" class="btn" onclick="addMember()">＋ 参加者追加</button><br>
+    <button type="submit" class="btn">計算する</button>
+  </form>
+
+  <div class="result" id="result" style="display:none;">
+    <h2>結果</h2>
+    <ul id="output"></ul>
+    <button class="btn copy-btn" onclick="copyResult()">コピー</button>
+    <div class="small">このページのURLを共有すれば結果を再表示できます。</div>
+  </div>
+
+  <script>
+    const membersDiv = document.getElementById('members');
+    const form = document.getElementById('form');
+    const resultDiv = document.getElementById('result');
+    const outputUl = document.getElementById('output');
+
+    function addMember(name = '', weight = 1.0) {
+      const div = document.createElement('div');
+      div.className = 'member flex';
+      div.innerHTML = `
+        <input type="text" placeholder="名前" value="${name}" required>
+        <input type="number" placeholder="傾斜係数" step="0.1" value="${weight}" required>
+      `;
+      membersDiv.appendChild(div);
+    }
+
+    function copyResult() {
+      const range = document.createRange();
+      range.selectNode(outputUl);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      document.execCommand("copy");
+      alert("結果をコピーしました！");
+    }
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const total = parseFloat(document.getElementById('total').value);
+      const members = Array.from(membersDiv.querySelectorAll('.member'));
+
+      let weights = [], names = [];
+
+      members.forEach(m => {
+        names.push(m.children[0].value);
+        weights.push(parseFloat(m.children[1].value));
+      });
+
+      const totalWeight = weights.reduce((a,b) => a + b, 0);
+      const results = names.map((name, i) => {
+        const amount = Math.round((weights[i] / totalWeight) * total);
+        return `${name}さん：${amount} 円`;
+      });
+
+      outputUl.innerHTML = '';
+      results.forEach(line => {
+        const li = document.createElement('li');
+        li.textContent = line;
+        outputUl.appendChild(li);
+      });
+
+      resultDiv.style.display = 'block';
+
+      // URL共有用にパラメータを生成
+      const params = new URLSearchParams();
+      params.set('total', total);
+      names.forEach((n, i) => {
+        params.append('name[]', n);
+        params.append('weight[]', weights[i]);
+      });
+      history.replaceState(null, '', '?' + params.toString());
+    });
+
+    // ページ読み込み時、URLからデータを復元
+    window.onload = () => {
+      const urlParams = new URLSearchParams(location.search);
+      const total = urlParams.get('total');
+      if (total) {
+        document.getElementById('total').value = total;
+        const names = urlParams.getAll('name[]');
+        const weights = urlParams.getAll('weight[]');
+        membersDiv.innerHTML = '';
+        names.forEach((n, i) => addMember(n, weights[i]));
+        form.dispatchEvent(new Event('submit'));
+      }
+    }
+  </script>
+</body>
+</html>
